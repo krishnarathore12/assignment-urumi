@@ -9,6 +9,7 @@ from app.models.store import Store, StoreStatus
 from app.services.store_service import StoreService
 from pydantic import BaseModel
 from uuid import UUID
+from sqlmodel import select
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -95,8 +96,33 @@ async def list_stores(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    # Filter by user in real app
-    # result = await session.exec(select(Store).where(Store.user_id == current_user.id))
-    # return result.all()
-    # Mock for now
-    return [] 
+    # Filter by user
+    stmt = select(Store).where(Store.user_id == current_user.id)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+@router.delete("/{store_id}")
+async def delete_store(
+    store_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    store = await session.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    
+    # Check authorization
+    if store.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this store")
+
+    # Delete resources (Helm release, namespace)
+    # in a real app, this might be a background task
+    success = await StoreService.delete_store(store)
+    
+    if not success:
+        logger.warning(f"Failed to uninstall helm release for store {store.id}, but proceeding with DB deletion")
+        
+    await session.delete(store)
+    await session.commit()
+    
+    return {"message": "Store deleted successfully"} 

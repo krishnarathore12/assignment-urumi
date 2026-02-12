@@ -3,7 +3,7 @@
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Loader2, Plus, LogOut, ShoppingBag, ShoppingBasket, ExternalLink } from "lucide-react";
+import { Loader2, Plus, LogOut, ShoppingBag, ShoppingBasket, ExternalLink, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -54,6 +54,28 @@ export default function LandingPage() {
         fetchStores();
     }
   }, [session]);
+
+  const handleDeleteStore = async (storeId: string, storeName: string) => {
+    if (!confirm(`Are you sure you want to delete store "${storeName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:8000/api/stores/${storeId}`, {
+            method: "DELETE",
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            setStores(prev => prev.filter(s => s.id !== storeId));
+        } else {
+            alert("Failed to delete store");
+        }
+    } catch (error) {
+        console.error("Error deleting store:", error);
+        alert("Error deleting store");
+    }
+  };
 
   const handleCreateStore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,12 +224,23 @@ export default function LandingPage() {
                         <div key={store.id} className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="font-semibold text-lg">{store.name}</div>
-                                <div className={`px-2 py-1 rounded text-xs font-bold ${
-                                    store.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                    store.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 animate-pulse'
-                                }`}>
-                                    {store.status}
+                                <div className="flex items-center gap-2">
+                                    <div className={`px-2 py-1 rounded text-xs font-bold ${
+                                        store.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                        store.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 animate-pulse'
+                                    }`}>
+                                        {store.status}
+                                    </div>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        onClick={() => handleDeleteStore(store.id, store.name)}
+                                        title="Delete Store"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
                             
@@ -224,11 +257,10 @@ export default function LandingPage() {
                                     </div>
                                 )}
 
-                                <div className="pt-4 flex gap-2">
+                                <div className="pt-4">
                                     <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveProvisioningStore({ id: store.id, name: store.name })}>
                                         View Logs
                                     </Button>
-                                    {/* Delete button could go here */}
                                 </div>
                             </div>
                         </div>

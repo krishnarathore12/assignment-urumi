@@ -59,19 +59,28 @@ class StoreService:
                     stderr=asyncio.subprocess.PIPE
                 )
 
-                # Stream stdout
-                if process.stdout:
-                    async for line in process.stdout:
-                        decoded = line.decode().strip()
-                        logger.info(decoded)
-                        yield decoded
+                # Let's use a Queue to aggregate outputs
+                queue = asyncio.Queue()
                 
-                # Stream stderr
-                if process.stderr:
-                    async for line in process.stderr:
+                async def stream_reader(stream, level_callback):
+                    async for line in stream:
                         decoded = line.decode().strip()
-                        logger.warning(decoded)
-                        yield decoded
+                        level_callback(decoded)
+                        await queue.put(decoded)
+                    await queue.put(None) # Signal done
+
+                tasks = [
+                    asyncio.create_task(stream_reader(process.stdout, logger.info)),
+                    asyncio.create_task(stream_reader(process.stderr, logger.warning))
+                ]
+                
+                finished_streams = 0
+                while finished_streams < 2:
+                    item = await queue.get()
+                    if item is None:
+                        finished_streams += 1
+                    else:
+                        yield item
 
                 await process.wait()
 
