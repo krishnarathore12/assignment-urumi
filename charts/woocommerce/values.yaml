@@ -1,0 +1,41 @@
+replicaCount: 1
+
+image:
+  repository: bitnami/wordpress
+  pullPolicy: IfNotPresent
+  tag: "6.7.1"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "store.localhost"
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+mariadb:
+  enabled: true
+  auth:
+    rootPassword: "root-password"
+    database: "bitnami_wordpress"
+    username: "bn_wordpress"
+    password: "db-password"
+  primary:
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 5Gi
+
+wordpressUsername: user
+wordpressPassword: password
+wordpressEmail: user@example.com
+wordpressFirstName: Admin
+wordpressLastName: User
+wordpressBlogName: My Store
